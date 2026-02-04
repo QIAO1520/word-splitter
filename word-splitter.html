@@ -321,6 +321,20 @@
                         <option value="char">按字</option>
                     </select>
                 </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400">分隔符</span>
+                    <select id="delimiterMode" class="bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-gray-200">
+                        <option value="space" selected>空格</option>
+                        <option value="newline">换行</option>
+                        <option value="comma">逗号</option>
+                        <option value="custom">自定义</option>
+                    </select>
+                    <input id="customDelimiter" type="text" placeholder="自定义分隔符" class="hidden bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-gray-200 w-36" />
+                </div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input id="dedupeCopy" type="checkbox" class="accent-sky-400" />
+                    <span class="text-gray-400">复制时去重（保留第一次出现）</span>
+                </label>
             </div>
 
             <!-- Stats Bar -->
@@ -397,6 +411,8 @@
             document.getElementById('themeToggle').addEventListener('click', toggleTheme);
             document.getElementById('wordsContainer').addEventListener('click', handleWordClick);
             document.getElementById('wordsContainer').addEventListener('dblclick', handleWordDoubleClick);
+            document.getElementById('delimiterMode').addEventListener('change', updateDelimiterVisibility);
+            updateDelimiterVisibility();
             updateThemeLabel();
 
             // Ctrl+V paste support
@@ -541,14 +557,48 @@
             showToast(`已复制: "${word}"`);
         }
 
+        function updateDelimiterVisibility() {
+            const mode = document.getElementById('delimiterMode').value;
+            const input = document.getElementById('customDelimiter');
+            if (mode === 'custom') {
+                input.classList.remove('hidden');
+            } else {
+                input.classList.add('hidden');
+            }
+        }
+
+        function getDelimiter() {
+            const mode = document.getElementById('delimiterMode').value;
+            if (mode === 'newline') return '\n';
+            if (mode === 'comma') return ',';
+            if (mode === 'custom') {
+                const custom = document.getElementById('customDelimiter').value;
+                return custom !== '' ? custom : ' ';
+            }
+            return ' ';
+        }
+
+        function dedupeWords(list) {
+            const seen = new Set();
+            const result = [];
+            for (const item of list) {
+                if (seen.has(item)) continue;
+                seen.add(item);
+                result.push(item);
+            }
+            return result;
+        }
+
         async function copySelected() {
             if (selectedWords.size === 0) {
                 showToast('请先选择要复制的词');
                 return;
             }
 
-            const selected = Array.from(selectedWords).sort((a, b) => a - b).map(i => words[i]);
-            const text = selected.join(' ');
+            const ordered = Array.from(selectedWords).sort((a, b) => a - b).map(i => words[i]);
+            const dedupe = document.getElementById('dedupeCopy').checked;
+            const selected = dedupe ? dedupeWords(ordered) : ordered;
+            const text = selected.join(getDelimiter());
 
             await copyToClipboard(text);
             showToast(`已复制 ${selected.length} 个词`);
