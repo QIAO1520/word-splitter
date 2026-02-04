@@ -583,14 +583,6 @@
             return words;
         }
 
-        function getCharType(char) {
-            if (/\s/.test(char)) return 'space';
-            if (/[a-zA-Z]/.test(char)) return 'en';
-            if (/\d/.test(char)) return 'num';
-            if (/[\u4e00-\u9fa5]/.test(char)) return 'zh';
-            return 'other';
-        }
-
         function renderWords() {
             const container = document.getElementById('wordsContainer');
             container.innerHTML = '';
