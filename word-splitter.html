@@ -313,6 +313,15 @@
                     清除选择
                 </button>
             </div>
+            <div class="flex flex-wrap items-center gap-4 mb-8 text-sm text-gray-300">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-400">中文模式</span>
+                    <select id="chineseMode" class="bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-gray-200">
+                        <option value="chunk" selected>整段</option>
+                        <option value="char">按字</option>
+                    </select>
+                </div>
+            </div>
 
             <!-- Stats Bar -->
             <div id="statsBar" class="hidden mb-6">
@@ -386,6 +395,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('inputText').addEventListener('input', updateCharCount);
             document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            document.getElementById('wordsContainer').addEventListener('click', handleWordClick);
+            document.getElementById('wordsContainer').addEventListener('dblclick', handleWordDoubleClick);
             updateThemeLabel();
 
             // Ctrl+V paste support
@@ -443,7 +454,8 @@
             }
 
             // Simple word segmentation algorithm
-            words = segmentText(text);
+            const chineseMode = document.getElementById('chineseMode').value || 'chunk';
+            words = segmentText(text, { chineseMode });
             selectedWords.clear();
             renderWords();
             updateStats();
@@ -455,14 +467,24 @@
             showToast(`已拆分 ${words.length} 个词`);
         }
 
-        function segmentText(text) {
+        function segmentText(text, options = { chineseMode: 'chunk' }) {
             const words = [];
 
-            const tokenRegex = /https?:\/\/[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|#\w+|@\w+|\d+(?:[.,]\d+)*|[a-zA-Z]+(?:[-_'][a-zA-Z0-9]+)*|[\u4e00-\u9fa5]+|[^\s]/g;
+            const tokenRegex = /https?:\/\/[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|#[\w\u4e00-\u9fa5]+|@[\w\u4e00-\u9fa5]+|\d+(?:[.,]\d+)*|[a-zA-Z]+(?:[-_'][a-zA-Z0-9]+)*|[\u4e00-\u9fa5]+|[^\s]/g;
             const matches = text.match(tokenRegex) || [];
 
             for (const token of matches) {
-                words.push(token);
+                if (/^[\u4e00-\u9fa5]+$/.test(token)) {
+                    if (options.chineseMode === 'char') {
+                        for (const ch of token) {
+                            words.push(ch);
+                        }
+                    } else {
+                        words.push(token);
+                    }
+                } else {
+                    words.push(token);
+                }
             }
 
             return words;
@@ -480,33 +502,41 @@
             const container = document.getElementById('wordsContainer');
             container.innerHTML = '';
 
+            const fragment = document.createDocumentFragment();
             words.forEach((word, index) => {
                 const card = document.createElement('div');
                 card.className = `word-card px-4 py-2 bg-neutral-900 rounded-xl shadow-sm border border-neutral-800 text-gray-200 font-medium select-none ${selectedWords.has(index) ? 'selected' : ''}`;
                 card.textContent = word;
                 card.dataset.index = index;
-
-                card.addEventListener('click', () => toggleSelection(index));
-                card.addEventListener('dblclick', () => copySingleWord(word));
-
-                container.appendChild(card);
+                fragment.appendChild(card);
             });
+            container.appendChild(fragment);
 
             updateCopyButton();
         }
 
-        function toggleSelection(index) {
+        function handleWordClick(event) {
+            const card = event.target.closest('.word-card');
+            if (!card || !card.dataset.index) return;
+            const index = Number(card.dataset.index);
+            if (Number.isNaN(index)) return;
+
             if (selectedWords.has(index)) {
                 selectedWords.delete(index);
+                card.classList.remove('selected');
             } else {
                 selectedWords.add(index);
+                card.classList.add('selected');
             }
 
-            renderWords();
             updateStats();
+            updateCopyButton();
         }
 
-        function copySingleWord(word) {
+        function handleWordDoubleClick(event) {
+            const card = event.target.closest('.word-card');
+            if (!card) return;
+            const word = card.textContent || '';
             copyToClipboard(word);
             showToast(`已复制: "${word}"`);
         }
