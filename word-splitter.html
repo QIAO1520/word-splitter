@@ -327,6 +327,7 @@
                         <option value="space" selected>空格</option>
                         <option value="newline">换行</option>
                         <option value="comma">逗号</option>
+                        <option value="none">不添加</option>
                         <option value="custom">自定义</option>
                     </select>
                     <input id="customDelimiter" type="text" placeholder="自定义分隔符" class="hidden bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-gray-200 w-36" />
@@ -640,6 +641,7 @@
             const mode = document.getElementById('delimiterMode').value;
             if (mode === 'newline') return '\n';
             if (mode === 'comma') return ',';
+            if (mode === 'none') return '';
             if (mode === 'custom') {
                 const custom = document.getElementById('customDelimiter').value;
                 return custom !== '' ? custom : ' ';
