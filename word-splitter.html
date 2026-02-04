@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能拆词工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0e1114;
+            --panel: #13181d;
+            --panel-strong: #1a2026;
+            --text: #e8edf2;
+            --muted: #9aa3ad;
+            --border: #2a323a;
+            --accent: #7dd3fc;
+            --accent-strong: #38bdf8;
+        }
+
+        [data-theme="light"] {
+            --bg: #f7f7f7;
+            --panel: #ffffff;
+            --panel-strong: #f1f1f1;
+            --text: #141414;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --accent: #0ea5e9;
+            --accent-strong: #0284c7;
+        }
+
+        * {
+            font-family: 'IBM Plex Sans SC', sans-serif;
+        }
+
+        body {
+            background:
+                radial-gradient(900px 600px at 10% -10%, rgba(125, 211, 252, 0.12), transparent 55%),
+                radial-gradient(700px 500px at 90% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%);
+            min-height: 100vh;
+            color: var(--text);
+        }
+
+        [data-theme="light"] body {
+            background:
+                radial-gradient(900px 600px at 10% -10%, rgba(0, 0, 0, 0.04), transparent 55%),
+                radial-gradient(700px 500px at 90% 0%, rgba(0, 0, 0, 0.03), transparent 60%),
+                linear-gradient(180deg, #f7f7f7 0%, #f4f4f4 100%);
+        }
+
+        .glass-panel {
+            background: linear-gradient(180deg, rgba(19, 24, 29, 0.98), rgba(16, 20, 25, 0.98));
+            backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        [data-theme="light"] .glass-panel {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 250, 250, 0.98));
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        .word-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .word-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(125, 211, 252, 0.12) 0%, rgba(56, 189, 248, 0.08) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .word-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+        }
+
+        .word-card:hover::before {
+            opacity: 1;
+        }
+
+        .word-card.selected {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.18) 0%, rgba(125, 211, 252, 0.26) 100%);
+            color: var(--text);
+            transform: scale(1.05);
+            border-color: rgba(125, 211, 252, 0.45);
+            box-shadow: 0 10px 24px rgba(56, 189, 248, 0.18);
+        }
+
+        [data-theme="light"] .word-card.selected {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.9) 0%, rgba(2, 132, 199, 0.9) 100%);
+            color: #ffffff;
+            border-color: var(--accent-strong);
+            box-shadow: 0 10px 24px rgba(2, 132, 199, 0.25);
+        }
+
+        .word-card.selected::before {
+            display: none;
+        }
+
+        .input-area {
+            background: linear-gradient(135deg, var(--panel) 0%, var(--panel-strong) 100%);
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        [data-theme="light"] .input-area {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+        }
+
+        .input-area:focus-within {
+            border-color: rgba(125, 211, 252, 0.5);
+            box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.12);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0e0e0e 0%, #141414 100%);
+            border: 1px solid rgba(125, 211, 252, 0.35);
+            color: var(--text);
+            transition: all 0.3s;
+        }
+
+        [data-theme="light"] .btn-primary {
+            background: #111111;
+            border-color: #111111;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-secondary {
+            background: #0f0f0f;
+            border: 1px solid var(--border);
+            color: var(--text);
+            transition: all 0.3s;
+        }
+
+        [data-theme="light"] .btn-secondary {
+            background: #ffffff;
+            color: #111111;
+            border: 1px solid #111111;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            border-color: rgba(125, 211, 252, 0.35);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+        }
+
+        .toast {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.04) 100%);
+            border: 1px solid var(--border);
+        }
+
+        [data-theme="light"] .stats-card {
+            background: #ffffff;
+        }
+
+        .theme-toggle {
+            border: 1px solid var(--border);
+            color: var(--text);
+            background: transparent;
+        }
+
+        .theme-toggle:hover {
+            border-color: rgba(125, 211, 252, 0.4);
+        }
+
+        [data-theme="light"] .text-white {
+            color: #111111 !important;
+        }
+
+        [data-theme="light"] .text-white\/60 {
+            color: #4b5563 !important;
+        }
+
+        [data-theme="light"] .text-white\/50 {
+            color: #6b7280 !important;
+        }
+
+        [data-theme="light"] .text-gray-200 {
+            color: #1f2937 !important;
+        }
+
+        [data-theme="light"] .text-gray-100 {
+            color: #111827 !important;
+        }
+
+        [data-theme="light"] .text-gray-300 {
+            color: #374151 !important;
+        }
+
+        [data-theme="light"] .text-gray-400 {
+            color: #6b7280 !important;
+        }
+
+        [data-theme="light"] .text-gray-500 {
+            color: #6b7280 !important;
+        }
+
+        [data-theme="light"] .text-sky-200 {
+            color: #111111 !important;
+        }
+
+        [data-theme="light"] .text-sky-300 {
+            color: #111111 !important;
+        }
+
+        [data-theme="light"] .bg-neutral-900 {
+            background: #ffffff !important;
+        }
+
+        [data-theme="light"] .border-neutral-800 {
+            border-color: #e5e7eb !important;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="relative text-center mb-8 fade-in">
+            <button id="themeToggle" class="theme-toggle absolute right-0 top-0 px-4 py-2 rounded-xl text-sm font-medium transition">
+                白天模式
+            </button>
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 tracking-wide">
+                智能拆词工具
+            </h1>
+            <p class="text-white/60 text-lg">
+                粘贴文本，自动分词，一键复制
+            </p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="glass-panel rounded-3xl p-6 md:p-8 shadow-2xl fade-in">
+            <!-- Input Section -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="text-gray-200 font-semibold text-lg">输入文本</label>
+                    <div class="flex gap-2">
+                        <button onclick="pasteFromClipboard()" class="px-4 py-2 bg-transparent border border-neutral-800 rounded-xl text-gray-300 hover:border-sky-300/40 hover:text-white transition text-sm font-medium">
+                            粘贴
+                        </button>
+                        <button onclick="clearInput()" class="px-4 py-2 bg-transparent border border-neutral-800 rounded-xl text-gray-300 hover:border-sky-300/40 hover:text-white transition text-sm font-medium">
+                            清空
+                        </button>
+                    </div>
+                </div>
+                <div class="input-area rounded-2xl p-1">
+                    <textarea
+                        id="inputText"
+                        placeholder="在此粘贴或输入要分词的文本..."
+                        class="w-full h-32 bg-transparent rounded-xl p-4 resize-none focus:outline-none text-gray-200 placeholder:text-gray-500 leading-relaxed"
+                    ></textarea>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3 mb-8">
+                <button onclick="splitWords()" class="btn-primary px-8 py-3 rounded-xl font-semibold shadow-lg">
+                    开始分词
+                </button>
+                <button onclick="copySelected()" id="copyBtn" class="btn-secondary px-8 py-3 rounded-xl font-semibold shadow-lg opacity-50 cursor-not-allowed" disabled>
+                    复制选中
+                </button>
+                <button onclick="clearSelection()" class="px-6 py-3 bg-transparent border border-neutral-800 text-gray-300 rounded-xl font-semibold hover:border-sky-300/40 hover:text-white transition">
+                    清除选择
+                </button>
+            </div>
+
+            <!-- Stats Bar -->
+            <div id="statsBar" class="hidden mb-6">
+                <div class="flex flex-wrap gap-4">
+                    <div class="stats-card px-4 py-2 rounded-xl">
+                        <span class="text-gray-500 text-sm">总词数</span>
+                        <span id="totalCount" class="text-2xl font-bold text-gray-100 ml-2">0</span>
+                    </div>
+                    <div class="stats-card px-4 py-2 rounded-xl">
+                        <span class="text-gray-500 text-sm">已选择</span>
+                        <span id="selectedCount" class="text-2xl font-bold text-sky-200 ml-2">0</span>
+                    </div>
+                    <div class="stats-card px-4 py-2 rounded-xl">
+                        <span class="text-gray-500 text-sm">字符数</span>
+                        <span id="charCount" class="text-2xl font-bold text-gray-200 ml-2">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-gray-100">分词结果</h3>
+                </div>
+
+                <div id="wordsContainer" class="flex flex-wrap gap-2">
+                    <!-- Words will be inserted here -->
+                </div>
+
+                <div class="mt-6 text-center text-gray-500 text-sm">
+                    <p>提示：单击选择/取消选择，双击直接复制单个词语</p>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-12">
+                <div class="w-24 h-24 mx-auto mb-4 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center">
+                    <svg class="w-12 h-12 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-200 mb-2">准备好开始分词</h3>
+                <p class="text-gray-500">在上方输入或粘贴文本，然后点击"开始分词"</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-white/50 text-sm">
+            <p>智能拆词工具 · 本地运行 · 数据安全</p>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-4 right-4 hidden">
+        <div class="glass-panel px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center">
+                <svg class="w-4 h-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <span id="toastMessage" class="text-gray-200 font-medium">复制成功</span>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let words = [];
+        let selectedWords = new Set();
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('inputText').addEventListener('input', updateCharCount);
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+            updateThemeLabel();
+
+            // Ctrl+V paste support
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                    setTimeout(() => {
+                        splitWords();
+                    }, 100);
+                }
+            });
+        });
+
+        function updateCharCount() {
+            const text = document.getElementById('inputText').value;
+            document.getElementById('charCount').textContent = text.length;
+        }
+
+        function toggleTheme() {
+            const root = document.documentElement;
+            const nextTheme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+            root.dataset.theme = nextTheme;
+            updateThemeLabel();
+        }
+
+        function updateThemeLabel() {
+            const root = document.documentElement;
+            const btn = document.getElementById('themeToggle');
+            btn.textContent = root.dataset.theme === 'dark' ? '白天模式' : '夜间模式';
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('inputText').value = text;
+                updateCharCount();
+                splitWords();
+                showToast('已粘贴剪贴板内容');
+            } catch (err) {
+                showToast('无法读取剪贴板，请手动粘贴');
+            }
+        }
+
+        function clearInput() {
+            document.getElementById('inputText').value = '';
+            updateCharCount();
+            resetResults();
+            showToast('已清空');
+        }
+
+        function splitWords() {
+            const text = document.getElementById('inputText').value.trim();
+            if (!text) {
+                showToast('请先输入文本');
+                return;
+            }
+
+            // Simple word segmentation algorithm
+            words = segmentText(text);
+            selectedWords.clear();
+            renderWords();
+            updateStats();
+
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('resultsSection').classList.remove('hidden');
+            document.getElementById('statsBar').classList.remove('hidden');
+
+            showToast(`已拆分 ${words.length} 个词`);
+        }
+
+        function segmentText(text) {
+            const words = [];
+
+            const tokenRegex = /https?:\/\/[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|#\w+|@\w+|\d+(?:[.,]\d+)*|[a-zA-Z]+(?:[-_'][a-zA-Z0-9]+)*|[\u4e00-\u9fa5]+|[^\s]/g;
+            const matches = text.match(tokenRegex) || [];
+
+            for (const token of matches) {
+                words.push(token);
+            }
+
+            return words;
+        }
+
+        function getCharType(char) {
+            if (/\s/.test(char)) return 'space';
+            if (/[a-zA-Z]/.test(char)) return 'en';
+            if (/\d/.test(char)) return 'num';
+            if (/[\u4e00-\u9fa5]/.test(char)) return 'zh';
+            return 'other';
+        }
+
+        function renderWords() {
+            const container = document.getElementById('wordsContainer');
+            container.innerHTML = '';
+
+            words.forEach((word, index) => {
+                const card = document.createElement('div');
+                card.className = `word-card px-4 py-2 bg-neutral-900 rounded-xl shadow-sm border border-neutral-800 text-gray-200 font-medium select-none ${selectedWords.has(index) ? 'selected' : ''}`;
+                card.textContent = word;
+                card.dataset.index = index;
+
+                card.addEventListener('click', () => toggleSelection(index));
+                card.addEventListener('dblclick', () => copySingleWord(word));
+
+                container.appendChild(card);
+            });
+
+            updateCopyButton();
+        }
+
+        function toggleSelection(index) {
+            if (selectedWords.has(index)) {
+                selectedWords.delete(index);
+            } else {
+                selectedWords.add(index);
+            }
+
+            renderWords();
+            updateStats();
+        }
+
+        function copySingleWord(word) {
+            copyToClipboard(word);
+            showToast(`已复制: "${word}"`);
+        }
+
+        async function copySelected() {
+            if (selectedWords.size === 0) {
+                showToast('请先选择要复制的词');
+                return;
+            }
+
+            const selected = Array.from(selectedWords).sort((a, b) => a - b).map(i => words[i]);
+            const text = selected.join(' ');
+
+            await copyToClipboard(text);
+            showToast(`已复制 ${selected.length} 个词`);
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch (err) {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+        }
+
+        function clearSelection() {
+            selectedWords.clear();
+            renderWords();
+            updateStats();
+            showToast('已清除选择');
+        }
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = words.length;
+            document.getElementById('selectedCount').textContent = selectedWords.size;
+        }
+
+        function updateCopyButton() {
+            const btn = document.getElementById('copyBtn');
+            if (selectedWords.size > 0) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function resetResults() {
+            words = [];
+            selectedWords.clear();
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('statsBar').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('wordsContainer').innerHTML = '';
+            updateStats();
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
