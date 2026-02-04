@@ -335,6 +335,10 @@
                     <input id="dedupeCopy" type="checkbox" class="accent-sky-400" />
                     <span class="text-gray-400">复制时去重（保留第一次出现）</span>
                 </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input id="autoSplitOnPaste" type="checkbox" class="accent-sky-400" checked />
+                    <span class="text-gray-400">粘贴后自动分词</span>
+                </label>
             </div>
 
             <!-- Stats Bar -->
@@ -407,23 +411,93 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('inputText').addEventListener('input', updateCharCount);
+            const inputText = document.getElementById('inputText');
+            inputText.addEventListener('input', updateCharCount);
+            inputText.addEventListener('paste', () => {
+                setTimeout(() => {
+                    updateCharCount();
+                    if (isAutoSplitEnabled()) {
+                        splitWords();
+                    }
+                }, 0);
+            });
+
             document.getElementById('themeToggle').addEventListener('click', toggleTheme);
             document.getElementById('wordsContainer').addEventListener('click', handleWordClick);
             document.getElementById('wordsContainer').addEventListener('dblclick', handleWordDoubleClick);
-            document.getElementById('delimiterMode').addEventListener('change', updateDelimiterVisibility);
+
+            document.getElementById('delimiterMode').addEventListener('change', () => {
+                updateDelimiterVisibility();
+                saveSetting('delimiterMode', document.getElementById('delimiterMode').value);
+            });
+            document.getElementById('customDelimiter').addEventListener('input', () => {
+                saveSetting('customDelimiter', document.getElementById('customDelimiter').value);
+            });
+            document.getElementById('chineseMode').addEventListener('change', () => {
+                saveSetting('chineseMode', document.getElementById('chineseMode').value);
+            });
+            document.getElementById('dedupeCopy').addEventListener('change', () => {
+                saveSetting('dedupe', document.getElementById('dedupeCopy').checked);
+            });
+            document.getElementById('autoSplitOnPaste').addEventListener('change', () => {
+                saveSetting('autoSplitOnPaste', document.getElementById('autoSplitOnPaste').checked);
+            });
+
+            loadSettings();
             updateDelimiterVisibility();
             updateThemeLabel();
-
-            // Ctrl+V paste support
-            document.addEventListener('keydown', (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-                    setTimeout(() => {
-                        splitWords();
-                    }, 100);
-                }
-            });
         });
+
+        function saveSetting(key, value) {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+
+        function getSetting(key) {
+            const raw = localStorage.getItem(key);
+            if (raw === null) return null;
+            try {
+                return JSON.parse(raw);
+            } catch (err) {
+                return raw;
+            }
+        }
+
+        function isAutoSplitEnabled() {
+            const checkbox = document.getElementById('autoSplitOnPaste');
+            return checkbox ? checkbox.checked : true;
+        }
+
+        function loadSettings() {
+            const savedTheme = getSetting('theme');
+            if (savedTheme === 'dark' || savedTheme === 'light') {
+                document.documentElement.dataset.theme = savedTheme;
+            }
+
+            const chineseMode = getSetting('chineseMode');
+            if (chineseMode) {
+                document.getElementById('chineseMode').value = chineseMode;
+            }
+
+            const delimiterMode = getSetting('delimiterMode');
+            if (delimiterMode) {
+                document.getElementById('delimiterMode').value = delimiterMode;
+            }
+
+            const customDelimiter = getSetting('customDelimiter');
+            if (customDelimiter !== null) {
+                document.getElementById('customDelimiter').value = customDelimiter;
+            }
+
+            const dedupe = getSetting('dedupe');
+            if (typeof dedupe === 'boolean') {
+                document.getElementById('dedupeCopy').checked = dedupe;
+            }
+
+            const autoSplitOnPaste = getSetting('autoSplitOnPaste');
+            if (typeof autoSplitOnPaste === 'boolean') {
+                document.getElementById('autoSplitOnPaste').checked = autoSplitOnPaste;
+            }
+        }
 
         function updateCharCount() {
             const text = document.getElementById('inputText').value;
@@ -434,6 +508,7 @@
             const root = document.documentElement;
             const nextTheme = root.dataset.theme === 'dark' ? 'light' : 'dark';
             root.dataset.theme = nextTheme;
+            saveSetting('theme', nextTheme);
             updateThemeLabel();
         }
 
@@ -448,7 +523,9 @@
                 const text = await navigator.clipboard.readText();
                 document.getElementById('inputText').value = text;
                 updateCharCount();
-                splitWords();
+                if (isAutoSplitEnabled()) {
+                    splitWords();
+                }
                 showToast('已粘贴剪贴板内容');
             } catch (err) {
                 showToast('无法读取剪贴板，请手动粘贴');
